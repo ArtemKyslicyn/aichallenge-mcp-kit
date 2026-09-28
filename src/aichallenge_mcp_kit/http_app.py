@@ -19,10 +19,10 @@ def build_app(config: KitConfig, artifacts: ArtifactStore):  # type: ignore[no-u
     app = mcp.streamable_http_app()
     app.add_middleware(BearerAuthMiddleware, token_env=config.token_env)
 
-    @app.route("/health", methods=["GET"])
     async def health(_request: Request) -> JSONResponse:
         return JSONResponse({"ok": True, "service": "aichallenge-mcp-kit"})
 
+    app.add_route("/health", health, methods=["GET"])
     mount_artifact_routes(app, artifacts)
 
     _original = app.router.lifespan_context

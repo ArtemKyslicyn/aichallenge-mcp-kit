@@ -64,11 +64,9 @@ class ArtifactStore:
 
 
 def mount_artifact_routes(app, store: ArtifactStore) -> None:  # type: ignore[no-untyped-def]
-    @app.route("/artifacts", methods=["POST"])
     async def create_artifact(_request: Request) -> JSONResponse:
         return JSONResponse(store.create())
 
-    @app.route("/artifacts/{artifact_id}", methods=["PUT"])
     async def put_artifact(request: Request) -> Response:
         artifact_id = request.path_params["artifact_id"]
         body = await request.body()
@@ -78,10 +76,13 @@ def mount_artifact_routes(app, store: ArtifactStore) -> None:  # type: ignore[no
             return JSONResponse({"error": str(exc)}, status_code=400)
         return JSONResponse({"ok": True, "id": artifact_id, "bytes": len(body)})
 
-    @app.route("/artifacts/{artifact_id}", methods=["GET"])
     async def get_artifact(request: Request) -> Response:
         artifact_id = request.path_params["artifact_id"]
         path = store.get_path(artifact_id)
         if path is None:
             return JSONResponse({"error": "not found"}, status_code=404)
         return FileResponse(path, filename=artifact_id)
+
+    app.add_route("/artifacts", create_artifact, methods=["POST"])
+    app.add_route("/artifacts/{artifact_id}", put_artifact, methods=["PUT"])
+    app.add_route("/artifacts/{artifact_id}", get_artifact, methods=["GET"])

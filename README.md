@@ -4,6 +4,8 @@
 
 AIChallenge never runs these processes. This kit never talks to the site database. The site only sees **one URL + one token**.
 
+![Architecture: chat → tunnel → hub → groups / artifacts](docs/images/architecture-overview.png)
+
 ## Why a separate public repo?
 
 | | |
@@ -14,6 +16,8 @@ AIChallenge never runs these processes. This kit never talks to the site databas
 Stdio MCP servers cannot be reached from a cloud chat. The kit publishes them behind one HTTPS tunnel.
 
 ## 5-minute connect
+
+![Connect: clone → run → tunnel → Guest MCP](docs/images/connect-flow.png)
 
 ```bash
 git clone https://github.com/ArtemKyslicyn/aichallenge-mcp-kit.git
@@ -37,23 +41,17 @@ On the site (logged in): **Свой MCP** / Настройки → Подклю�
 
 Optional pack: [`packs/aichallenge-guest.example.json`](packs/aichallenge-guest.example.json) (replace the URL; never put the token in a shared pack file).
 
-## What you get
+Full walkthrough: [docs/connect-aichallenge.md](docs/connect-aichallenge.md).
 
-```text
-                    https://tunnel…/mcp
-                            │
-              ┌─────────────┼─────────────┐
-              │             │             │
-           group:dev    group:media   /artifacts
-           fs git python  montage…    PUT/GET files
-```
+## What you get
 
 - **Hierarchy:** `kit.yaml` → groups → children. Tool names: `{group}__{child}__{tool}` (e.g. `dev__python__exec`).
 - **Hub tools:** `hub_list_children`, `hub_workspace_list|put|get`.
 - **Python sandbox:** `dev__python__*` — cwd under `workspace/sandboxes/`, network off by default.
-- **Artifacts:** large outputs (video, builds) via `GET /artifacts/{id}` with the same Bearer — not multi‑MB base64 through chat SSE.
+- **Stdio / HTTP proxy:** enabled children stay connected for the life of the process; tools are forwarded with prefixes.
+- **Artifacts:** large outputs via `GET /artifacts/{id}` with the same Bearer.
 
-**v0.1 status:** hub + workspace + artifacts + builtin Python sandbox are runnable. Stdio/HTTP child **proxy** is wired in the manifest and `hub_list_children`; live tool forwarding for those transports lands next — enable children in yaml when you upgrade, or run heavy MCPs as separate HTTP children you already host.
+![Python sandbox](docs/images/python-sandbox.png)
 
 ## Docs
 

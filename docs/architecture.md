@@ -1,5 +1,7 @@
 # Architecture
 
+![Architecture overview: AIChallenge chat → HTTPS tunnel → MCP Hub → groups and artifacts](images/architecture-overview.png)
+
 ## Roles
 
 | Component | Responsibility |
@@ -17,14 +19,22 @@ hub_*                          → hub built-ins
 {group}__{child}__{tool}       → proxied or builtin child
 ```
 
-Examples:
-
-- `hub_list_children`
-- `dev__fs__read_file`
-- `dev__python__exec`
-- `media__montage__cut`
+Examples: `hub_list_children`, `dev__fs__read_file`, `dev__python__exec`, `media__montage__cut`.
 
 ## Request path
+
+```mermaid
+flowchart LR
+  Chat[AIChallenge chat] -->|Bearer tools/call| Hub["Hub /mcp"]
+  Hub --> Dev[dev group]
+  Hub --> Media[media group]
+  Hub --> Artifacts["/artifacts"]
+  Dev --> FS[fs stdio]
+  Dev --> Git[git stdio]
+  Dev --> Py[python sandbox]
+  Media --> Montage[montage MCP]
+  Artifacts --> Disk[(workspace/artifacts)]
+```
 
 1. Client `tools/list` → hub merges hub tools + every healthy child’s tools (prefixed).
 2. Client `tools/call` on `dev__git__git_status` → hub strips prefix → child’s `git_status`.
@@ -34,9 +44,11 @@ Examples:
 
 | `transport` | Meaning |
 |---|---|
-| `stdio` | Spawn `command` + `args`; MCP over stdio |
-| `http` | Forward to `url` (+ optional `token_env`) |
+| `stdio` | Spawn `command` + `args`; MCP over stdio (proxied for the life of the hub) |
+| `http` | Long-lived client to `url` (+ optional `token_env`) |
 | `builtin` | In-process module (`python_sandbox`, `hub_run`) |
+
+Failed child handshake → hub stays up; `hub_list_children` shows `status: error`.
 
 ## Workspace layout
 
@@ -48,4 +60,4 @@ workspace/
   in/ out/           # optional drop folders for media
 ```
 
-All paths are resolved under `KIT_WORKSPACE` (default `./workspace`). Traversal outside that root is rejected.
+All paths resolve under `KIT_WORKSPACE`. Traversal outside that root is rejected.

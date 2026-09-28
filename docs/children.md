@@ -2,6 +2,8 @@
 
 Edit `kit.yaml` (start from `kit.example.yaml`).
 
+The hub keeps a **long-lived** session per enabled stdio/HTTP child: tools are listed at startup and proxied as `{group}__{child}__{tool}`.
+
 ## Stdio child
 
 ```yaml
@@ -24,6 +26,8 @@ Official starters often used under **`dev`**:
 | `fs` | `npx -y @modelcontextprotocol/server-filesystem ./workspace/projects` |
 | `git` | `uvx mcp-server-git --repository ./workspace/projects` |
 
+Enable them in `kit.yaml` (`enabled: true`) after `npx` / `uvx` work on your machine.
+
 ## HTTP child
 
 If a server already speaks Streamable HTTP locally:
@@ -39,17 +43,13 @@ If a server already speaks Streamable HTTP locally:
 
 | `module` | Role |
 |---|---|
-| `python_sandbox` | Sandboxed Python (see python-sandbox.md) |
+| `python_sandbox` | Sandboxed Python (see [python-sandbox.md](python-sandbox.md)) |
 | `hub_run` | Allowlisted shell in workspace — **keep `enabled: false` unless you need it** |
-
-## v0.1 note
-
-Builtin `python_sandbox` tools are live. Stdio/HTTP entries appear in `hub_list_children` with `status: pending` when enabled; full tool proxy is the next release. Prefer HTTP children that already expose `/mcp` if you need them today.
 
 ## Failure behavior
 
-If a child fails handshake at startup, the hub **stays up**. `hub_list_children` shows `status: error` and that child’s tools are omitted until restart (or reload, when implemented).
+If a child fails handshake at startup, the hub **stays up**. `hub_list_children` shows `status: error` and that child’s tools are omitted until restart.
 
 ## Ideas (not bundled)
 
-Godot, Blender, Playwright, GitHub, Xcode/mobile — add as stdio/http children when installed on your machine. Do not commit secrets for those children; use `*_TOKEN` env names in `.env` only.
+Godot, Blender, Playwright, GitHub, Xcode/mobile — add as stdio/http children when installed on your machine. Do not commit secrets; use `*_TOKEN` env names in `.env` only.

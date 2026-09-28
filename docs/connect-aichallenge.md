@@ -1,8 +1,26 @@
 # Connect to AIChallenge
 
+![Connect flow: clone → run locally → tunnel → paste into Guest MCP](images/connect-flow.png)
+
 AIChallenge **Guest MCP** expects Streamable HTTP JSON-RPC at a URL ending in `/mcp`, with `Authorization: Bearer <token>`.
 
 ## Steps
+
+```mermaid
+sequenceDiagram
+  participant You
+  participant Kit as Kit :3100
+  participant Tunnel as cloudflared
+  participant Site as AIChallenge
+
+  You->>Kit: uv run aichallenge-mcp-kit
+  You->>Tunnel: tunnel --url http://127.0.0.1:3100
+  Tunnel-->>You: https://….trycloudflare.com
+  You->>Site: Guest MCP URL + Bearer
+  Site->>Tunnel: tools/list / tools/call
+  Tunnel->>Kit: forward
+  Kit-->>Site: tool results / artifact URLs
+```
 
 1. Start the kit on loopback (`uv run aichallenge-mcp-kit` → `http://127.0.0.1:3100/mcp`).
 2. Expose it with a tunnel:
@@ -21,7 +39,7 @@ AIChallenge **Guest MCP** expects Streamable HTTP JSON-RPC at a URL ending in `/
 
 ## JSON pack
 
-[`packs/aichallenge-guest.example.json`](../packs/aichallenge-guest.example.json) can prefill **name** + **url**. Put the token only in the site form (or local password manager) — never commit a pack that contains a real Bearer.
+[`packs/aichallenge-guest.example.json`](../packs/aichallenge-guest.example.json) can prefill **name** + **url**. Put the token only in the site form — never commit a pack that contains a real Bearer.
 
 ## What the site must not do
 
@@ -34,5 +52,5 @@ AIChallenge **Guest MCP** expects Streamable HTTP JSON-RPC at a URL ending in `/
 ```bash
 export TOKEN=…   # same as KIT_SHARED_TOKEN
 curl -sS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3100/health
-# tools/list via your MCP client against http://127.0.0.1:3100/mcp
+# Expect: {"ok":true,"service":"aichallenge-mcp-kit"}
 ```

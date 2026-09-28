@@ -1,5 +1,7 @@
 # Security
 
+![Architecture reminder: only the tunnel is public; hub binds loopback](images/architecture-overview.png)
+
 ## Threat model (short)
 
 The kit turns your computer into a remote tool host. Anyone who learns **tunnel URL + Bearer** can call every enabled tool: read/write workspace files, run sandboxed Python, invoke child MCPs (montage, git, …).
@@ -21,6 +23,7 @@ Treat the token like a password. Rotate if the tunnel URL leaked in a screenshot
 - Path checks under `KIT_WORKSPACE`
 - Bearer on `/mcp` and `/artifacts` (except `/health`)
 - Sandbox timeout and output size caps
+- Stdio/HTTP children isolated as separate processes / URLs
 - No real secrets in the public git tree (`.env.example` placeholders only)
 
 ## What is not a full VM

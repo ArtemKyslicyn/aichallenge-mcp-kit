@@ -1,12 +1,13 @@
-"""Child registry: builtins now; stdio/http handshake status for listing."""
+"""Child registry: builtins + stdio/HTTP proxy sessions."""
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 from aichallenge_mcp_kit.config import ChildSpec, KitConfig
+from aichallenge_mcp_kit.proxy import ChildSession
 from aichallenge_mcp_kit.sandbox import PythonSandbox
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class ChildRuntime:
     detail: str = ""
     tool_count: int = 0
     tools: dict[str, ToolHandler] = field(default_factory=dict)
+    session: ChildSession | None = None
 
 
 class ChildRegistry:
@@ -30,7 +32,8 @@ class ChildRegistry:
         self.sandbox = sandbox
         self.children: list[ChildRuntime] = []
 
-    def bootstrap(self) -> None:
+    def bootstrap_sync(self) -> None:
+        """Mount builtins and record disabled/pending rows. Proxies connect in bootstrap_async."""
         self.children.clear()
         for group in self.config.groups:
             for spec in group.children:
@@ -43,20 +46,42 @@ class ChildRegistry:
                     self._mount_builtin(rt)
                 elif spec.transport in {"stdio", "http"}:
                     rt.status = "pending"
-                    rt.detail = (
-                        f"{spec.transport} proxy: enable deps then restart; "
-                        "v0.1 lists config; full proxy ships next"
-                    )
-                    # Still register so hub_list_children shows the tree intent
+                    rt.detail = "connecting…"
                 else:
                     rt.status = "error"
                     rt.detail = f"unknown transport {spec.transport}"
                 self.children.append(rt)
 
+    async def bootstrap_async(self) -> None:
+        """Connect enabled stdio/HTTP children and attach proxied tools."""
+        for rt in self.children:
+            if not rt.spec.enabled or rt.spec.transport not in {"stdio", "http"}:
+                continue
+            session = ChildSession(rt.group_id, rt.spec)
+            try:
+                await session.connect()
+            except Exception as exc:  # noqa: BLE001 — surface in hub_list_children
+                logger.exception("child connect failed %s__%s", rt.group_id, rt.spec.id)
+                rt.status = "error"
+                rt.detail = str(exc)[:300]
+                continue
+            rt.session = session
+            rt.tools = session.make_handlers()
+            rt.tool_count = len(rt.tools)
+            rt.status = "ok"
+            rt.detail = ""
+
+    async def aclose(self) -> None:
+        for rt in self.children:
+            if rt.session is not None:
+                await rt.session.close()
+                rt.session = None
+
     def _mount_builtin(self, rt: ChildRuntime) -> None:
         module = rt.spec.module or ""
         prefix = f"{rt.group_id}__{rt.spec.id}"
         if module == "python_sandbox":
+
             async def write(session_id: str = "default", path: str = "", content: str = "") -> str:
                 return self.sandbox.write(session_id, path, content)
 

@@ -1,5 +1,7 @@
 # Python sandbox
 
+![Python sandbox: chat tool call → sandboxed exec → stdout / artifact, network off](images/python-sandbox.png)
+
 Builtin child under group **`dev`**, id **`python`** (`transport: builtin`, `module: python_sandbox`).
 
 ## Tools
@@ -21,13 +23,22 @@ Session directory: `workspace/sandboxes/{session_id}/` (default session `default
 | Timeout | 30 seconds (`SANDBOX_TIMEOUT_SEC`) |
 | Max stdout/stderr | 1 MiB combined |
 | `pip install` from chat | **Not allowed** |
-| Packages | Optional `sandbox_requirements.txt` for a pre-built venv (document in profile) |
+| Packages | Optional `sandbox_requirements.txt` for a pre-built venv |
 
-Isolation v1 = subprocess with cwd pinned + env scrubbed. Stronger isolation (Docker / bubblewrap) is optional when binaries exist; see env flags in `.env.example`.
+```mermaid
+flowchart TB
+  Call["dev__python__exec"] --> Cwd["sandboxes/session/"]
+  Cwd --> Proc["subprocess python"]
+  Proc -->|timeout / cap| Out[stdout stderr]
+  Proc --> Files[written files]
+  Files -->|large| Art["/artifacts"]
+```
+
+Isolation v1 = subprocess with cwd pinned + env scrubbed (kit `*_TOKEN` / `*_KEY` stripped). Stronger isolation (Docker / bubblewrap) can be added later via env flags.
 
 ## Artifacts from Python
 
-If a script writes a binary under the sandbox or `workspace/out/`, register or copy it into `workspace/artifacts/` and return `artifact_id` from `hub_workspace_get`, or `POST /artifacts` then `PUT` the bytes.
+If a script writes a binary under the sandbox or `workspace/out/`, use `hub_workspace_get(..., as_artifact=true)` or `POST /artifacts` then `PUT` the bytes.
 
 ## Forbidden
 

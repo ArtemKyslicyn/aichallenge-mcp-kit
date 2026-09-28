@@ -24,32 +24,47 @@ mcp = FastMCP(
     transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
 
-# Filled by bootstrap()
 _config: KitConfig | None = None
 _registry: ChildRegistry | None = None
 _artifacts: ArtifactStore | None = None
 _workspace: Path | None = None
+_registered_tools: set[str] = set()
 
 
 def bootstrap(config: KitConfig) -> tuple[ChildRegistry, ArtifactStore]:
+    """Sync phase: workspace, builtins, artifact store (proxies connect async)."""
     global _config, _registry, _artifacts, _workspace
     _config = config
     ensure_workspace(config.workspace)
     _workspace = config.workspace
     sandbox = PythonSandbox(config.workspace)
     _registry = ChildRegistry(config, sandbox)
-    _registry.bootstrap()
+    _registry.bootstrap_sync()
     _artifacts = ArtifactStore(config.workspace)
 
-    # Register builtin child tools on the FastMCP instance
     for name, handler in _registry.all_tool_handlers().items():
         _register_dynamic_tool(name, handler)
 
     return _registry, _artifacts
 
 
+async def connect_proxies() -> None:
+    """Async phase: stdio/HTTP children + register their tools."""
+    _, registry, _, _ = _require()
+    await registry.bootstrap_async()
+    for name, handler in registry.all_tool_handlers().items():
+        _register_dynamic_tool(name, handler)
+
+
+async def shutdown_proxies() -> None:
+    if _registry is not None:
+        await _registry.aclose()
+
+
 def _register_dynamic_tool(name: str, handler: Any) -> None:
-    # FastMCP tool names must be valid; our prefixes use __ which is fine.
+    if name in _registered_tools:
+        return
+
     async def _tool(**kwargs: Any) -> str:
         result = handler(**kwargs)
         if hasattr(result, "__await__"):
@@ -59,6 +74,7 @@ def _register_dynamic_tool(name: str, handler: Any) -> None:
     _tool.__name__ = name
     _tool.__doc__ = f"Kit child tool {name}"
     mcp.tool(name=name)(_tool)
+    _registered_tools.add(name)
 
 
 def _require() -> tuple[KitConfig, ChildRegistry, ArtifactStore, Path]:

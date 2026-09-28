@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "My PC hub",
+      "url": "https://REPLACE-WITH-TUNNEL.trycloudflare.com/mcp"
+    }
+  ]
+}

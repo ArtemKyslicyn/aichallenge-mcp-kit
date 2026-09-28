@@ -1,0 +1,44 @@
+# Copy to kit.yaml and edit. Never commit secrets — use token_env + .env.
+
+workspace: ./workspace
+bind: 127.0.0.1:3100
+token_env: KIT_SHARED_TOKEN
+
+groups:
+  - id: dev
+    children:
+      - id: python
+        transport: builtin
+        module: python_sandbox
+        enabled: true
+
+      - id: fs
+        transport: stdio
+        enabled: false
+        command: npx
+        args:
+          - "-y"
+          - "@modelcontextprotocol/server-filesystem"
+          - "./workspace/projects"
+
+      - id: git
+        transport: stdio
+        enabled: false
+        command: uvx
+        args:
+          - "mcp-server-git"
+          - "--repository"
+          - "./workspace/projects"
+
+      - id: shell
+        transport: builtin
+        module: hub_run
+        enabled: false
+
+  - id: media
+    children:
+      - id: montage
+        transport: stdio
+        enabled: false
+        command: echo
+        args: ["replace-with-your-montage-mcp"]
